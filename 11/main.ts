@@ -6,13 +6,23 @@ type Worrylevel = {
   factors: number[];
   constant: number;
 }
+function asNumber(worrylevel: Worrylevel): number {
+  const value = (worrylevel.factors.reduce((val,x) => val*x, 1) + worrylevel.constant);
+  assert(value < Math.pow(2, 53),' Out of bounds');
+  return value;
+}
 
 function isDivisibleBy(left: Worrylevel, divisor: number): boolean {
   // ab mod n = [(a mod n)(b mod n)] mod n.
   const factorMod = left.factors.reduce((mod, x) => mod * (x % divisor), 1) % divisor;
   // (a + b) mod n = [(a mod n) + (b mod n)] mod n.
   const mod = (factorMod + left.constant % divisor) % divisor;
-  assert(mod === ((left.factors.reduce((val,x) => val*x, 1) + left.constant) % divisor));
+
+  // Sanity check for representable numbers
+  const value = (left.factors.reduce((val,x) => val*x, 1) + left.constant);
+  if (value < Math.pow(2,52)) {
+    assert(mod === value % divisor);
+  }
 
   return mod === 0;
 }
