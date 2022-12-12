@@ -39,9 +39,78 @@ function parseMap(): { map: number[][], startPos: Pos, endPos: Pos } {
   return { map, startPos, endPos};
 }
 
+function heighAt(map: number[][], pos: Pos): number {
+  return map[pos[1]][pos[0]];
+}
+
+function *findPossibleMoves(map: number[][], path: Pos[], position: Pos): Generator<Pos> {
+  function adjustPos(dx: number, dy: number): Pos {
+    return [position[0] + dx, position[1] + dy];
+  }
+  function isInBounds(p: Pos): boolean {
+    return (p[0] >= 0 && p[0] < map[0].length && p[1] >= 0 && p[1] < map.length);
+  }
+  function isDeltaHeightOk(p: Pos) {
+    return Math.abs(heighAt(map, p) - heighAt(map, position)) <= 1;
+  }
+  function isNotVisited(p: Pos) {
+    return !path.some(pos => pos[0] === p[0] && pos[1] === p[1]);
+  }
+
+  {
+    const p = adjustPos(-1, 0);
+    if (isInBounds(p) && isDeltaHeightOk(p) && isNotVisited(p))
+      yield p;
+  }
+  {
+    const p = adjustPos(1, 0);
+    if (isInBounds(p) && isDeltaHeightOk(p) && isNotVisited(p))
+      yield p;
+  }
+  {
+    const p = adjustPos(0, -1);
+    if (isInBounds(p) && isDeltaHeightOk(p) && isNotVisited(p))
+      yield p;
+  }
+  {
+    const p = adjustPos(0, 1);
+    if (isInBounds(p) && isDeltaHeightOk(p) && isNotVisited(p))
+      yield p;
+  }
+}
+
+function findBestPath(map: number[][], startPos: Pos, endPos: Pos, path: Pos[]): Pos[] {
+  path = path.slice();
+  path.push(startPos);
+  if (startPos[0] === endPos[0] && startPos[1] === endPos[1])
+    return path;
+
+  // Find candidates
+  const possibleMoves = Array.from(findPossibleMoves(map, path, startPos));
+  let paths: Pos[][] = [];
+  for (let i = 0; i < possibleMoves.length; i++) {
+    const fullPath = findBestPath(map, possibleMoves[i], endPos, path);
+    if (fullPath.length !== 0) {
+      paths.push(fullPath);
+    }
+  }
+
+  if (paths.length === 0) {
+    return [];
+  } else {
+    paths.sort((a,b) => a.length - b.length);
+    // console.log(paths.map(x => x.length));
+    return paths[0];
+  }
+}
+
 async function main() {
   const { map, startPos, endPos } = parseMap();
   console.log(map, startPos, endPos)
+  const best = findBestPath(map, startPos, endPos, []);
+  console.log(best.map(p => `<${p[0]},${p[1]}> (${heighAt(map, p)})`).join('\n'));
+  console.log('Shortest:', best.length);
+
 
 }
 main();
