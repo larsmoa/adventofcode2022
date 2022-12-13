@@ -55,7 +55,6 @@ function *findPossibleMoves(map: number[][], visited: Pos[], position: Pos): Gen
     // We're moving backwards
     const from = heighAt(map, p);
     const to = heighAt(map, position);
-    console.log('delta ok?', from, '->', to, from > to || from + 1 === to || from === to);
     return from > to || from + 1 === to || from === to;
   }
   function isVisited(p: Pos) {
@@ -64,9 +63,9 @@ function *findPossibleMoves(map: number[][], visited: Pos[], position: Pos): Gen
   }
   function *checkCandidate(dx: number, dy: number) {
     const p = adjustPos(dx, dy);
-    if (p[0] === 0 && p[1] === 20) {
-      console.log(position,'->',p, 'height:', heighAt(map, p), 'prevHeight:', heighAt(map, position));
-    }
+    // if (p[0] === 0 && p[1] === 20) {
+    //   console.log(position,'->',p, 'height:', heighAt(map, p), 'prevHeight:', heighAt(map, position));
+    // }
     // if (p[0] === 0 && p[1] === 20) throw Error('found');
     if (isInBounds(p) && isDeltaHeightOk(p) && !isVisited(p))
       yield p;
@@ -126,7 +125,7 @@ function findNextBestMove(map: number[][], position: Pos): Pos {
 }
 
 
-function findBestPath(map: number[][], startPos: Pos, endPos: Pos, _path: Pos[]): Pos[] {
+function findBestPath(map: number[][], startPos: Pos, endPos: Pos): Pos[] {
   function isSamePos(a: Pos, b: Pos) {
     return a[0] === b[0] && a[1] === b[1];
   }
@@ -142,7 +141,7 @@ function findBestPath(map: number[][], startPos: Pos, endPos: Pos, _path: Pos[])
   } while (i < visits.length);
   // const mapKey = (x: Pos) => `${x[0]},${x[1]}`;
   // const visitsMap = visits.reduce((map, x) => map.set(mapKey(x), x), new Map<string, Pos>());
-  console.log(visits);
+  // console.log(visits);
   const mapCounters: number[][] = map.map(row => {
     return row.map(() => Infinity);
   });
@@ -152,80 +151,71 @@ function findBestPath(map: number[][], startPos: Pos, endPos: Pos, _path: Pos[])
     mapCounters[v[1]][v[0]] = v[2];
     // console.log('after',mapCounters[v[1]][v[0]]);
   }
-  for (let i = 0; i < mapCounters.length; ++i) {
-    const row = mapCounters.at(i);
-    console.log(row.map(c => {
-      if (!Number.isFinite(c)) return '#';
-      if (c < 10) return `${c}`;
-      if (c < 36) return String.fromCharCode('a'.charCodeAt(0) + c - 10);
-      if (c > 51 + 10) return '+';
-      return String.fromCharCode('A'.charCodeAt(0) + c - 36);
-    }).join(''), i + 1);
-  }
+  // for (let i = 0; i < mapCounters.length; ++i) {
+  //   const row = mapCounters.at(i);
+  //   console.log(row.map(c => {
+  //     if (!Number.isFinite(c)) return '#';
+  //     if (c < 10) return `${c}`;
+  //     if (c < 36) return String.fromCharCode('a'.charCodeAt(0) + c - 10);
+  //     if (c > 51 + 10) return '+';
+  //     return String.fromCharCode('A'.charCodeAt(0) + c - 36);
+  //   }).join(''), i + 1);
+  // }
 
-  console.log();
-  for (let j = 0; j < mapCounters.length; ++j) {
-    const row = mapCounters.at(j);
-    console.log(row.map((c,i) => {
-      if (Number.isFinite(c))
-        return String.fromCharCode('A'.charCodeAt(0) + heighAt(map, [i, j, 0]));
-      return String.fromCharCode('a'.charCodeAt(0) + heighAt(map, [i, j, 0]));
-    }).join(''), j + 1);
+  // console.log();
+  // for (let j = 0; j < mapCounters.length; ++j) {
+  //   const row = mapCounters.at(j);
+  //   console.log(row.map((c,i) => {
+  //     if (Number.isFinite(c))
+  //       return String.fromCharCode('A'.charCodeAt(0) + heighAt(map, [i, j, 0]));
+  //     return String.fromCharCode('a'.charCodeAt(0) + heighAt(map, [i, j, 0]));
+  //   }).join(''), j + 1);
+  // }
+
+  if (!Number.isFinite(heighAt(mapCounters, startPos))) {
+    // console.log('NO PATH, returns empty');
+    return [];
   }
 
   const path: Pos[] = [];
   let pos: Pos = [startPos[0], startPos[1], mapCounters[startPos[1]][startPos[0]]];  
   do {
-    console.log(pos);
     path.push(pos);
     pos = findNextBestMove(mapCounters, pos);
   } while (!isSamePos(pos, endPos));
-  // console.log(visits.map((v,i) => `[${i}] <${v[0]},${v[1]}> (${v[2]})`).join('\n'), index);  
 
-  for (let j = 0; j < mapCounters.length; ++j) {
-    const row = mapCounters.at(j);
-    console.log(row.map((c,i) => {
-      if (path.some(p => p[0] === i && p[1] === j)) {
-        return String.fromCharCode('a'.charCodeAt(0) + heighAt(map, [i, j, 0]));
-      }
-      return '#';
-    }).join(''), j + 1);
-  }
+  // for (let j = 0; j < mapCounters.length; ++j) {
+  //   const row = mapCounters.at(j);
+  //   console.log(row.map((c,i) => {
+  //     if (path.some(p => p[0] === i && p[1] === j)) {
+  //       return String.fromCharCode('a'.charCodeAt(0) + heighAt(map, [i, j, 0]));
+  //     }
+  //     return '#';
+  //   }).join(''), j + 1);
+  // }
   return path;
-
-  /*
-  path = path.slice();
-  path.push(startPos);
-  if (startPos[0] === endPos[0] && startPos[1] === endPos[1])
-    return path;
-
-  // Find candidates
-  const possibleMoves = Array.from(findPossibleMoves(map, path, startPos));
-  let paths: Pos[][] = [];
-  for (let i = 0; i < possibleMoves.length; i++) {
-    const fullPath = findBestPath(map, possibleMoves[i], endPos, path);
-    if (fullPath.length !== 0) {
-      paths.push(fullPath);
-    }
-  }
-
-  if (paths.length === 0) {
-    return [];
-  } else {
-    paths.sort((a,b) => a.length - b.length);
-    // console.log(paths.map(x => x.length));
-    return paths[0];
-  }
-  */
 }
 
 async function main() {
   const { map, startPos, endPos } = parseMap();
-  // console.log(map, startPos, endPos)
-  const best = findBestPath(map, startPos, endPos, []);
-  console.log(best.map(p => `<${p[0]},${p[1]}> (${heighAt(map, p)})`).join('\n'));
-  console.log('Shortest:', best.length);
+  const pathFromStart = findBestPath(map, startPos, endPos);
+  console.log('Part 1:', pathFromStart.length);
 
+  const candidateStarts = [startPos];
+  map.forEach((row, j) => {
+    row.forEach((col, i) => {
+      if (col === 0) {
+        candidateStarts.push([i,j,0]);
+      }
+    });
+  });
+  
+  const paths = candidateStarts.map((start,i) => {
+    const path = findBestPath(map, start, endPos);
+    return path;
+  });
+  const foundPaths = paths.filter(x => x.length > 0).sort((a,b) => a.length - b.length);
+  console.log('Part 2: shortest of all = ', foundPaths.map(x => x.length)[0]);
 
 }
 main();
