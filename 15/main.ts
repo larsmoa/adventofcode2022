@@ -64,7 +64,6 @@ function addCoordinate(map: Map<number, number[]>, signal: [number, number], bea
     const [bx, by] = beacon;
     const beaconSignalDistance = dist([sx, sy], [bx, by]);
     const delta = Math.floor(beaconSignalDistance);
-    // const deltaMax = Math.ceil(beaconSignalDistance);
     console.log('Distance', beaconSignalDistance);
 
     for (let j = -delta; j <= delta; j++) {
@@ -117,9 +116,16 @@ async function main() {
     }
     
     // drawMap(coveredCoordinates, [-10, -10], [35, 35]);
-    const row = 2000000;
+    const row = 10;
     const cols = extractRow(coveredCoordinates, row);
     const beaconsOnRow = beaconsByRow.get(row)?.size ?? 0;
     console.log('Part 1:', cols.size - beaconsOnRow);
+
+    const searchSpace = 4000000;
+    for (let j = 0; j <= searchSpace; j++) {
+        const row = extractRow(coveredCoordinates, j);
+            console.log(j, row.size);
+    }
+
 }
 main();
