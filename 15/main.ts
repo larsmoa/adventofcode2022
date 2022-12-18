@@ -7,43 +7,17 @@ function dist(a: [number,number], b: [number, number]): number {
 }
 
 function drawMap(map: Map<number, number[]>, min: [number, number], max: [number, number]) {
+    console.log(Array.from(new Array(max[0] - min[0]).keys()).map((_, i) => Math.floor(i / 10)).join(''));
+    console.log(Array.from(new Array(max[0] - min[0]).keys()).map((_, i) => Math.floor(i % 10)).join(''));
     for (let j = min[1]; j <= max[1]; j++) {
         const row = extractRow(map, j);
-        const line = Array.from('.'.repeat(max[0] - min[0]) + ` ${j}`);
+        const line = Array.from('.'.repeat(max[0] - min[0] + 1) + ` ${j}`);
         for (const col of row) {
-            line[col - min[0]] = '#';
+            if (col >= min[0] && col <= max[0]) 
+                line[col - min[0]] = '#';
         }
         console.log(line.join(''));
     }
-    /*
-    const coordinates = Array.from(map.keys()).map(s => {
-        const coordinate: [number, number] = parseKey(s);
-        return coordinate;
-    });
-
-    [...new Array(max[1] - min[1]).keys()].forEach((_, j) => {
-        const row = min[1] + j;
-        const line = Array.from('.'.repeat(max[0] - min[0]) + ` ${row}`);
-        for (let col = min[0]; col < max[0]; col++) {
-            let i = col - min[0];
-            if (map.has(key([col, row]))) {
-                line[i] = map.get(key([col, row]));
-            }
-        }
-        console.log(line.join(''));
-    });
-    */
-}
-
-function key(p: [number,number]) {
-    return (p[0] << 32) | (p[1]);
-    // return JSON.stringify(p);
-}
-
-function parseKey(key: number): [number, number] {
-    const x = (key >> 32);  
-    const y = (key && 0xffffffff);
-    return [x,y];
 }
 
 function extractRow(map: Map<number, number[]>, rowIndex: number): Set<number> {
@@ -80,22 +54,59 @@ function addCoordinate(map: Map<number, number[]>, signal: [number, number], bea
     }
 }
 
-        /*
-        for (let i = -(beaconSignalDistance - j); i <= (beaconSignalDistance - j); i++) {
-            const p : [number, number] = [sx + i, sy + j];
-            const k = key(p);
-            // if (dist(p, [sx, sy]) <= beaconSignalDistance) {
-            //     if (!map.has(k)) {
-            //         map.set(k, '#');
-            //     }
-            // }
-        }
-        */
-    // }
-    // map.set(key(signal), 'S');
-    // map.set(key(beacon), 'B');
+type Signal = { signal: [number, number], beacon: [number, number], signalReach: number };
 
-// }
+
+const notFoundSignal: Signal = { signal: [-1, -1], beacon: [-1, -1], signalReach: -1 };
+function findClosest(signals: Signal[], p: [number, number]): Signal {
+    const best = signals
+        .filter(s => dist(s.signal, p) <= s.signalReach)
+        .map(s => {
+            return { signal: s, distance: dist(s.signal, p) };
+        })
+        .reduce((best, candidate) => {
+            if (best.distance > candidate.distance) {
+                return candidate;
+            }
+            return best;
+        }, { signal: notFoundSignal, distance: Infinity });
+    return best.signal;
+}
+
+function findNextRowNotCoveredBySignal(p: [number, number], signal: Signal, searchSpace: number): [number, number] {
+    /*
+            012345678
+            ...###...           0
+            ..#####..           1
+            .#######.           2
+            #########           3
+          # ####S#### #         4
+            #########           5
+            .#######.           6
+            ..#####..           7
+            ...###...           8
+      signal = [4,4], signalReach = 5
+      searchSpace = 8
+      
+      p = [3,0] -> result = [6,0]
+      p = [2,1] -> result = [7,1]
+      p = [7,1] -> result = [8,1]
+      p = [8,2] -> result = [0,6]
+    */
+   const [px, py] = p;
+   const [sx, sy] = signal.signal;
+   const signalReach = signal.signalReach;
+   const vDist = Math.abs(py - sy);
+   const hReach = signalReach - vDist;
+   
+   const nextPx = Math.max(px + 1, sx + hReach + 1);
+   if (nextPx > searchSpace) {
+    // In theory it might be possible to jump several lines, but not worth it.
+    return [0, py + 1]; 
+   }
+   return [nextPx, py];
+}
+
 
 async function main() {
     const stream = fs.createReadStream("./15/input.data");
@@ -103,7 +114,7 @@ async function main() {
 
     const coveredCoordinates = new Map<number, number[]>();
     const beaconsByRow = new Map<number, Set<number>>();
-    // addCoordinate(coveredCoordinates, [8,7], [2,10]);
+    const signals: Signal[] = [];
     for await (const line of lineReader) {
         const split = line.split(/[\s:,=]/);
         const sx = Number.parseInt(split[3]);
@@ -113,19 +124,32 @@ async function main() {
         console.log('add', [sx,sy], 'and', [bx, by]);
         addCoordinate(coveredCoordinates, [sx, sy], [bx, by]);
         beaconsByRow.has(by) ? beaconsByRow.get(by).add(bx) : beaconsByRow.set(by, new Set([bx]));
+        signals.push({ signal: [sx, sy], beacon: [bx, by], signalReach: dist([bx, by], [sx, sy])});
     }
     
-    // drawMap(coveredCoordinates, [-10, -10], [35, 35]);
     const row = 10;
     const cols = extractRow(coveredCoordinates, row);
     const beaconsOnRow = beaconsByRow.get(row)?.size ?? 0;
     console.log('Part 1:', cols.size - beaconsOnRow);
 
-    const searchSpace = 4000000;
-    for (let j = 0; j <= searchSpace; j++) {
-        const row = extractRow(coveredCoordinates, j);
-            console.log(j, row.size);
-    }
-
+    const searchSpace = 4_000_000;
+    let j = 0;
+    let i = 0;
+    let lastReportedJ = 0;
+    do {
+        // Find closest beacon
+        const closest = findClosest(signals, [i, j]);
+        if (closest.signalReach === -1) {
+            console.log('Part 2 - found:', [i,j], 'tuning frequency:', i*4000000 + j);
+            return;
+        } else {
+            // Skip forward!
+            [i,j] = findNextRowNotCoveredBySignal([i,j], closest, searchSpace);
+        }
+        if (lastReportedJ !== j && (j - lastReportedJ) > 10000) {
+            console.log(j);
+            lastReportedJ = j;
+        }
+    } while (i <= searchSpace && j <= searchSpace);
 }
 main();
